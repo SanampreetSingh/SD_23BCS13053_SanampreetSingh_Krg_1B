@@ -1,4 +1,5 @@
-# Sanampreet Singh
+----------
+# Name: Sanampreet Singh
 
 # UID: 23BCS13053
 
