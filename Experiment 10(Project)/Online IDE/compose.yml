@@ -1,0 +1,63 @@
+# syntax for compose.yml
+#  first define services then each service syntax as python
+services: 
+  # LAYER 1: The Gateway (Reverse Proxy)
+  nginx:
+    image: nginx:alpine
+    container_name: ide-gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
+      - frontend_build:/usr/share/nginx/html:ro
+    environment:
+      - HTTP_PORT=80
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - BACKEND_PORT=${BACKEND_PORT}
+      - DOCKER_RESOLVER=${DOCKER_RESOLVER}
+      - CLIENT_MAX_BODY_SIZE=${CLIENT_MAX_BODY_SIZE}
+      - WORKER_CONNECTIONS=${WORKER_CONNECTIONS}
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+    networks:
+      - bridge_net
+    depends_on:
+      - backend
+    restart: always
+
+  # LAYER 2: The Logic (Node.js Manager)
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend  
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${VOLUME_BASE_PATH}:${VOLUME_BASE_PATH}
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - bridge_net
+    restart: always
+
+  # LAYER 3: The UI (Build Provider)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    volumes:
+      - frontend_build:/app/dist
+    networks:         
+      - bridge_net
+  
+
+volumes:
+  frontend_build:
+
+networks:
+  bridge_net:
+    name: bridge_net
+    driver: bridge
